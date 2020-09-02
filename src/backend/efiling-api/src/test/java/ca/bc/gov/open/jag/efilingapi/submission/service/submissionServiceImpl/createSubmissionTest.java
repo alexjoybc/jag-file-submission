@@ -6,6 +6,7 @@ import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.payment.BamboraPaymentAdapter;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.PartyMapperImpl;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionServiceImpl;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import ca.bc.gov.open.jag.efilingcommons.model.AccountDetails;
@@ -29,7 +30,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class createSubmissionTest {
@@ -64,7 +64,7 @@ public class createSubmissionTest {
     @BeforeAll
     public void setUp(){
         MockitoAnnotations.initMocks(this);
-        Mockito.when(efilingSubmissionServiceMock.submitFilingPackage(any(), any(), any(), anyBoolean(), any())).thenReturn(SubmitPackageResponse.builder().transactionId(BigDecimal.TEN).packageLink("http://link").create());
+        Mockito.when(efilingSubmissionServiceMock.submitFilingPackage(any(), any())).thenReturn(SubmitPackageResponse.builder().transactionId(BigDecimal.TEN).packageLink("http://link").create());
         Mockito.when(bamboraPaymentAdapterMock.makePayment(any())).thenReturn(new PaymentTransaction());
         Mockito.when(documentStoreMock.get(any(), any())).thenReturn(new byte[]{});
         Mockito.doNothing().when(sftpServiceMock).put(any(), any());
@@ -79,16 +79,10 @@ public class createSubmissionTest {
 
         SubmitResponse actual = sut.createSubmission(Submission
                 .builder()
-                .id(TestHelpers.CASE_1)
-                .accountDetails(AccountDetails.builder()
-                        .clientId(BigDecimal.TEN)
-                        .accountId(BigDecimal.TEN)
-                        .internalClientNumber("123")
-                        .create())
-                .transactionId(TestHelpers.CASE_1)
+                .submissionKey(new SubmissionKey(UUID.randomUUID(),TestHelpers.CASE_1, TestHelpers.CASE_1))
                 .navigation(TestHelpers.createDefaultNavigation())
                 .expiryDate(10)
-                .clientApplication(TestHelpers.createClientApplication(TestHelpers.DISPLAY_NAME, TestHelpers.TYPE))
+                .clientAppName(TestHelpers.DISPLAY_NAME)
                 .filingPackage(TestHelpers.createPackage(TestHelpers.createCourt(), TestHelpers.createDocumentList(), TestHelpers.createPartyList()))
                 .create(),
                 AccountDetails.builder()

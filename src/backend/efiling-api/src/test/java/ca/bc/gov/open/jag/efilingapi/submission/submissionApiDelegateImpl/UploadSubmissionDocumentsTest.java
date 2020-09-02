@@ -8,9 +8,7 @@ import ca.bc.gov.open.jag.efilingapi.api.model.UploadSubmissionDocumentsResponse
 import ca.bc.gov.open.jag.efilingapi.config.NavigationProperties;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.submission.SubmissionApiDelegateImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapper;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapperImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.GenerateUrlResponseMapper;
+import ca.bc.gov.open.jag.efilingapi.submission.mappers.*;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import org.junit.jupiter.api.*;
@@ -77,7 +75,8 @@ public class UploadSubmissionDocumentsTest {
         Mockito.when(multipartFileMock.getBytes()).thenThrow(new IOException("random"));
 
         FilingPackageMapper filingPackageMapper = new FilingPackageMapperImpl();
-        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, generateUrlResponseMapperMock, navigationProperties, submissionStoreMock, documentStoreMock, clamAvServiceMock, filingPackageMapper);
+        SubmissionMapper submissionMapper = new SubmissionMapperImpl();
+        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, generateUrlResponseMapperMock, navigationProperties, submissionStoreMock, submissionMapper, documentStoreMock, clamAvServiceMock, filingPackageMapper);
     }
 
     @Test
@@ -189,7 +188,7 @@ public class UploadSubmissionDocumentsTest {
         ResponseEntity actual = sut.uploadSubmissionDocuments(UUID.randomUUID(), "BADUUID", files);
 
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, actual.getStatusCode());
-        Assertions.assertEquals(INVALIDUNIVERSAL.getErrorCode(), ((EfilingError)actual.getBody()).getError());
-        Assertions.assertEquals(INVALIDUNIVERSAL.getErrorMessage(), ((EfilingError)actual.getBody()).getMessage());
+        Assertions.assertEquals(MISSING_UNIVERSAL_ID.getErrorCode(), ((EfilingError)actual.getBody()).getError());
+        Assertions.assertEquals(MISSING_UNIVERSAL_ID.getErrorMessage(), ((EfilingError)actual.getBody()).getMessage());
     }
 }

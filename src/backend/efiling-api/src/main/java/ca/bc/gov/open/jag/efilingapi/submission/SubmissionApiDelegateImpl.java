@@ -12,14 +12,15 @@ import ca.bc.gov.open.jag.efilingapi.error.EfilingErrorBuilder;
 import ca.bc.gov.open.jag.efilingapi.error.ErrorResponse;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.GenerateUrlResponseMapper;
+import ca.bc.gov.open.jag.efilingapi.submission.mappers.SubmissionMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import ca.bc.gov.open.jag.efilingapi.utils.MdcUtils;
 import ca.bc.gov.open.jag.efilingapi.utils.SecurityUtils;
 import ca.bc.gov.open.jag.efilingapi.utils.TikaAnalysis;
 import ca.bc.gov.open.jag.efilingcommons.exceptions.*;
-import ca.bc.gov.open.jag.efilingcommons.model.AccountDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -49,6 +50,7 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     private final SubmissionStore submissionStore;
     private final AccountService accountService;
     private final GenerateUrlResponseMapper generateUrlResponseMapper;
+    private final SubmissionMapper submissionMapper;
     private final NavigationProperties navigationProperties;
     private final DocumentStore documentStore;
     private final ClamAvService clamAvService;
@@ -59,12 +61,13 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
             AccountService accountService,
             GenerateUrlResponseMapper generateUrlResponseMapper,
             NavigationProperties navigationProperties,
-            SubmissionStore submissionStore, DocumentStore documentStore, ClamAvService clamAvService, FilingPackageMapper filingPackageMapper) {
+            SubmissionStore submissionStore, SubmissionMapper submissionMapper, DocumentStore documentStore, ClamAvService clamAvService, FilingPackageMapper filingPackageMapper) {
         this.submissionService = submissionService;
         this.accountService = accountService;
         this.generateUrlResponseMapper = generateUrlResponseMapper;
         this.navigationProperties = navigationProperties;
         this.submissionStore = submissionStore;
+        this.submissionMapper = submissionMapper;
         this.documentStore = documentStore;
         this.clamAvService = clamAvService;
         this.filingPackageMapper = filingPackageMapper;
@@ -78,7 +81,7 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
 
         if(!universalId.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.BAD_REQUEST);
 
         SubmissionKey submissionKey = new SubmissionKey(
@@ -86,13 +89,13 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
                 xTransactionId,
                 UUID.randomUUID());
 
-        MdcUtils.setClientMDC(submissionKey.getSubmissionId(), xTransactionId);
+        MdcUtils.setClientMDC(submissionKey, SecurityUtils.getClientId());
 
         logger.info("attempting to upload original document [{}]", submissionKey.getSubmissionId());
 
         if (!universalId.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
         ResponseEntity response = storeDocuments(submissionKey, files);
@@ -110,25 +113,23 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     public ResponseEntity<UploadSubmissionDocumentsResponse> uploadAdditionalSubmissionDocuments(UUID submissionId, UUID xTransactionId, List<MultipartFile> files) {
 
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
-        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey);
+        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey.get());
 
         if (!fromCacheSubmission.isPresent())
             return ResponseEntity.notFound().build();
 
-        MdcUtils.setUserMDC(submissionId, xTransactionId);
-
         logger.info("attempting to upload new document for transaction [{}]", submissionId);
 
-        ResponseEntity responseEntity = storeDocuments(submissionKey, files);
+        ResponseEntity responseEntity = storeDocuments(submissionKey.get(), files);
 
         logger.info("successfully uploaded new document for transaction [{}]", submissionId);
 
@@ -142,14 +143,14 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     public ResponseEntity<UpdateDocumentResponse> updateDocumentProperties(UUID submissionId, UUID
             xTransactionId, UpdateDocumentRequest updateDocumentRequest) {
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
-        MdcUtils.setUserMDC(submissionId, xTransactionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
         logger.info("attempting to add new document for transaction [{}]", submissionId);
 
@@ -158,15 +159,13 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
                     EfilingErrorBuilder.builder().errorResponse(ErrorResponse.DOCUMENT_REQUIRED).create(),
                     HttpStatus.BAD_REQUEST);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
-
-        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey);
+        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey.get());
 
         if (!fromCacheSubmission.isPresent())
             return ResponseEntity.notFound().build();
 
         try {
-            Submission submission = submissionService.updateDocuments(fromCacheSubmission.get(), updateDocumentRequest, submissionKey);
+            Submission submission = submissionService.updateDocuments(fromCacheSubmission.get(), updateDocumentRequest, submissionKey.get());
             UpdateDocumentResponse updateDocumentResponse = new UpdateDocumentResponse();
             FilingPackage filingPackage = filingPackageMapper.toApiFilingPackage(submission.getFilingPackage());
             updateDocumentResponse.setDocuments(filingPackage.getDocuments());
@@ -188,21 +187,18 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
                                                           UUID submissionId,
                                                           String filename) {
 
-
         logger.info("getSubmission document for transaction [{}]", xTransactionId);
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
-        MdcUtils.setUserMDC(submissionId, xTransactionId);
-
-        byte[] bytes = documentStore.get(submissionKey, filename);
+        byte[] bytes = documentStore.get(submissionKey.get(), filename);
 
         if (bytes == null) return ResponseEntity.notFound().build();
 
@@ -218,24 +214,22 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     @RolesAllowed("efiling-client")
     public ResponseEntity<GenerateUrlResponse> generateUrl(UUID xTransactionId, String xUserId, UUID submissionId, GenerateUrlRequest generateUrlRequest) {
 
-
-        MdcUtils.setClientMDC(xTransactionId, submissionId);
-
         logger.info("Attempting to generate Url Request Received");
 
         Optional<UUID> universalId = SecurityUtils.stringToUUID(xUserId);
 
         if (!universalId.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
         SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
 
+        MdcUtils.setClientMDC(submissionKey, SecurityUtils.getClientId());
+
         ResponseEntity response;
 
         try {
-            generateUrlRequest.getClientApplication().setType(SecurityUtils.getApplicationCode());
             response = ResponseEntity.ok(
                     generateUrlResponseMapper.toGenerateUrlResponse(
                             submissionService.generateFromRequest(submissionKey, generateUrlRequest),
@@ -243,10 +237,10 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
             logger.info("successfully generated return url.");
         } catch (CSOHasMultipleAccountException e) {
             logger.warn(e.getMessage(), e);
-            response = new ResponseEntity(buildEfilingError(ErrorResponse.ACCOUNTEXCEPTION), HttpStatus.BAD_REQUEST);
+            response = new ResponseEntity(buildEfilingError(ErrorResponse.ACCOUNT_EXCEPTION), HttpStatus.BAD_REQUEST);
         } catch (InvalidAccountStateException e) {
             logger.warn(e.getMessage(), e);
-            response = new ResponseEntity(buildEfilingError(ErrorResponse.INVALIDROLE), HttpStatus.FORBIDDEN);
+            response = new ResponseEntity(buildEfilingError(ErrorResponse.INVALID_ROLE), HttpStatus.FORBIDDEN);
         } catch (EfilingDocumentServiceException e) {
             logger.warn(e.getMessage(), e);
             response = new ResponseEntity(buildEfilingError(ErrorResponse.DOCUMENT_TYPE_ERROR), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -265,42 +259,27 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     @RolesAllowed("efiling-user")
     public ResponseEntity<GetSubmissionConfigResponse> getSubmissionConfig(UUID submissionId, UUID xTransactionId) {
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        if (!universalId.isPresent()) return new ResponseEntity(
-                EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(), HttpStatus.FORBIDDEN);
+        if(!submissionKey.isPresent())
+            return new ResponseEntity(
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
+                    HttpStatus.FORBIDDEN);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
-
-        MdcUtils.setUserMDC(submissionId, xTransactionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
         logger.info("attempting to get Submission for transactionId [{}]", xTransactionId);
 
-        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey);
+        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey.get());
 
         if (!fromCacheSubmission.isPresent())
             return ResponseEntity.notFound().build();
-
-
-        if (fromCacheSubmission.get().getAccountDetails() == null ||
-            fromCacheSubmission.get().getAccountDetails().getAccountId() == null ||
-            fromCacheSubmission.get().getAccountDetails().getClientId() == null)
-            setIdsInCachedSubmission(universalId.get(),fromCacheSubmission.get());
-
-
-        GetSubmissionConfigResponse response = new GetSubmissionConfigResponse();
-
-        response.setClientAppName(fromCacheSubmission.get().getClientApplication().getDisplayName());
-
-        response.setNavigation(fromCacheSubmission.get().getNavigation());
-
-        response.setCsoBaseUrl(navigationProperties.getCsoBaseUrl());
 
         logger.info("Successfully retrieved submission for transactionId [{}]", xTransactionId);
 
         MdcUtils.clearUserMDC();
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(submissionMapper.toGetSubmissionConfigResponse(fromCacheSubmission.get(), navigationProperties.getCsoBaseUrl()));
 
     }
 
@@ -308,21 +287,18 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     @RolesAllowed("efiling-user")
     public ResponseEntity<FilingPackage> getSubmissionFilingPackage(UUID xTransactionId, UUID submissionId) {
 
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
-
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
-
-        MdcUtils.setUserMDC(submissionId, xTransactionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
         logger.info("attempting to get Submission Filing Package for transactionId [{}]", xTransactionId);
 
-        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey);
+        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey.get());
 
         if (!fromCacheSubmission.isPresent())
             return ResponseEntity.notFound().build();
@@ -336,28 +312,28 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
 
 
     @Override
+    @RolesAllowed("efiling-user")
     public ResponseEntity<Void> deleteSubmission(UUID submissionId, UUID xTransactionId) {
 
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
-
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
-        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey);
+        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey.get());
         if(!fromCacheSubmission.isPresent())
             return ResponseEntity.notFound().build();
         //Remove documents from cache
         if (fromCacheSubmission.get().getFilingPackage() != null && fromCacheSubmission.get().getFilingPackage().getDocuments() != null)
             fromCacheSubmission.get().getFilingPackage().getDocuments().forEach(
-                    document -> documentStore.evict(submissionKey, document.getName()));
+                    document -> documentStore.evict(submissionKey.get(), document.getName()));
 
         //Remove submission from cache
-        submissionStore.evict(submissionKey);
+        submissionStore.evict(submissionKey.get());
         return new ResponseEntity<>(HttpStatus.OK);
 
     }
@@ -366,27 +342,25 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
     @RolesAllowed("efiling-user")
     public ResponseEntity<SubmitResponse> submit(UUID xTransactionId, UUID submissionId, Object body) {
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, submissionId);
 
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
 
-        SubmissionKey submissionKey = new SubmissionKey(universalId.get(), xTransactionId, submissionId);
-
-        MdcUtils.setUserMDC(submissionId, xTransactionId);
+        MdcUtils.setUserMDC(submissionKey.get());
 
         logger.info("attempting to submit efiling package for transaction [{}]", xTransactionId);
 
-        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey);
+        Optional<Submission> fromCacheSubmission = this.submissionStore.get(submissionKey.get());
 
         if (!fromCacheSubmission.isPresent())
             return ResponseEntity.notFound().build();
         ResponseEntity response;
         MDC.put(Keys.MDC_EFILING_SUBMISSION_ID, submissionId.toString());
         try {
-            SubmitResponse result = submissionService.createSubmission(fromCacheSubmission.get(), accountService.getCsoAccountDetails(submissionKey.getUniversalId()));
+            SubmitResponse result = submissionService.createSubmission(fromCacheSubmission.get(), accountService.getCsoAccountDetails(submissionKey.get().getUniversalId()));
             response = new ResponseEntity(result, HttpStatus.CREATED);
             logger.info("successfully submitted efiling package for transaction [{}], cso id {}", xTransactionId);
 
@@ -410,13 +384,7 @@ public class SubmissionApiDelegateImpl implements SubmissionApiDelegate {
 
     }
 
-    private void setIdsInCachedSubmission(UUID universalId, Submission submission) {
-        AccountDetails accountDetails = accountService.getCsoAccountDetails(universalId);
-        if (accountDetails != null) {
-            submission.setAccountDetails(accountDetails);
-            this.submissionStore.put(submission);
-        }
-    }
+
 
     private ResponseEntity storeDocuments(SubmissionKey submissionKey, List<MultipartFile> files) {
 

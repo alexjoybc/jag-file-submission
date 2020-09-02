@@ -9,9 +9,7 @@ import ca.bc.gov.open.jag.efilingapi.api.model.GetSubmissionConfigResponse;
 import ca.bc.gov.open.jag.efilingapi.config.NavigationProperties;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.submission.SubmissionApiDelegateImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapper;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapperImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.GenerateUrlResponseMapper;
+import ca.bc.gov.open.jag.efilingapi.submission.mappers.*;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
@@ -103,7 +101,7 @@ public class GetSubmissionTest {
         Submission submissionWithCsoAccount = Submission
                 .builder()
                 .navigation(TestHelpers.createNavigation(TestHelpers.SUCCESS_URL, TestHelpers.CANCEL_URL, TestHelpers.ERROR_URL))
-                .clientApplication(TestHelpers.createClientApplication(TestHelpers.DESCRIPTION, TestHelpers.TYPE))
+                .clientAppName(TestHelpers.DESCRIPTION)
                 .create();
 
         Mockito
@@ -113,12 +111,7 @@ public class GetSubmissionTest {
 
         Submission submissionWithoutCsoAccount = Submission
                 .builder()
-                .accountDetails(AccountDetails.builder()
-                        .accountId(null)
-                        .clientId(null)
-                        .create()
-                )
-                .clientApplication(TestHelpers.createClientApplication(TestHelpers.DESCRIPTION, TestHelpers.TYPE))
+                .clientAppName(TestHelpers.DESCRIPTION)
                 .navigation(TestHelpers.createNavigation(TestHelpers.SUCCESS_URL, TestHelpers.CANCEL_URL, TestHelpers.ERROR_URL))
                 .create();
 
@@ -145,7 +138,8 @@ public class GetSubmissionTest {
                         .create());
 
         FilingPackageMapper filingPackageMapper = new FilingPackageMapperImpl();
-        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, generateUrlResponseMapperMock, navigationProperties, submissionStoreMock, documentStoreMock, clamAvServiceMock, filingPackageMapper);
+        SubmissionMapper submissionMapper = new SubmissionMapperImpl();
+        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, generateUrlResponseMapperMock, navigationProperties, submissionStoreMock, submissionMapper, documentStoreMock, clamAvServiceMock, filingPackageMapper);
 
     }
 
@@ -171,9 +165,9 @@ public class GetSubmissionTest {
 
         ResponseEntity<GetSubmissionConfigResponse> actual = sut.getSubmissionConfig( TestHelpers.CASE_2, TestHelpers.CASE_2);
         assertEquals(HttpStatus.OK, actual.getStatusCode());
-        assertEquals(TestHelpers.SUCCESS_URL, actual.getBody().getNavigation().getSuccess().getUrl());
-        assertEquals(TestHelpers.CANCEL_URL, actual.getBody().getNavigation().getCancel().getUrl());
-        assertEquals(TestHelpers.ERROR_URL, actual.getBody().getNavigation().getError().getUrl());
+        assertEquals(TestHelpers.SUCCESS_URL, actual.getBody().getNavigation().getSuccess());
+        assertEquals(TestHelpers.CANCEL_URL, actual.getBody().getNavigation().getCancel());
+        assertEquals(TestHelpers.ERROR_URL, actual.getBody().getNavigation().getError());
         assertEquals(TestHelpers.DESCRIPTION, actual.getBody().getClientAppName());
 
     }
@@ -189,9 +183,9 @@ public class GetSubmissionTest {
 
         ResponseEntity<GetSubmissionConfigResponse> actual = sut.getSubmissionConfig(TestHelpers.CASE_3, UUID.randomUUID());
         assertEquals(HttpStatus.OK, actual.getStatusCode());
-        assertEquals(TestHelpers.SUCCESS_URL, actual.getBody().getNavigation().getSuccess().getUrl());
-        assertEquals(TestHelpers.CANCEL_URL, actual.getBody().getNavigation().getCancel().getUrl());
-        assertEquals(TestHelpers.ERROR_URL, actual.getBody().getNavigation().getError().getUrl());
+        assertEquals(TestHelpers.SUCCESS_URL, actual.getBody().getNavigation().getSuccess());
+        assertEquals(TestHelpers.CANCEL_URL, actual.getBody().getNavigation().getCancel());
+        assertEquals(TestHelpers.ERROR_URL, actual.getBody().getNavigation().getError());
     }
 
     @Test
@@ -205,9 +199,9 @@ public class GetSubmissionTest {
 
         ResponseEntity<GetSubmissionConfigResponse> actual = sut.getSubmissionConfig(TestHelpers.CASE_4, UUID.randomUUID());
         assertEquals(HttpStatus.OK, actual.getStatusCode());
-        assertEquals(TestHelpers.SUCCESS_URL, actual.getBody().getNavigation().getSuccess().getUrl());
-        assertEquals(TestHelpers.CANCEL_URL, actual.getBody().getNavigation().getCancel().getUrl());
-        assertEquals(TestHelpers.ERROR_URL, actual.getBody().getNavigation().getError().getUrl());
+        assertEquals(TestHelpers.SUCCESS_URL, actual.getBody().getNavigation().getSuccess());
+        assertEquals(TestHelpers.CANCEL_URL, actual.getBody().getNavigation().getCancel());
+        assertEquals(TestHelpers.ERROR_URL, actual.getBody().getNavigation().getError());
     }
 
     @Test

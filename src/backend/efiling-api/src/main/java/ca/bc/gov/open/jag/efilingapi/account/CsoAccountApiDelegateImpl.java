@@ -10,6 +10,7 @@ import ca.bc.gov.open.jag.efilingapi.api.model.EfilingError;
 import ca.bc.gov.open.jag.efilingapi.error.EfilingErrorBuilder;
 import ca.bc.gov.open.jag.efilingapi.error.ErrorResponse;
 import ca.bc.gov.open.jag.efilingapi.submission.SubmissionApiDelegateImpl;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.utils.MdcUtils;
 import ca.bc.gov.open.jag.efilingapi.utils.SecurityUtils;
 import ca.bc.gov.open.jag.efilingcommons.exceptions.EfilingAccountServiceException;
@@ -45,17 +46,21 @@ public class CsoAccountApiDelegateImpl implements CsoAccountApiDelegate {
     @Override
     @RolesAllowed("efiling-user")
     public ResponseEntity<CsoAccount> createAccount(UUID xTransactionId, CreateCsoAccountRequest createAccountRequest) {
-        
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
 
-        if(!universalId.isPresent()) return new ResponseEntity(
-                EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(), HttpStatus.FORBIDDEN);
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, null);
+
+        if(!submissionKey.isPresent())
+            return new ResponseEntity(
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
+                    HttpStatus.FORBIDDEN);
+
+        MdcUtils.setUserMDC(submissionKey.get());
 
         try {
 
             logger.debug("attempting to create a cso account");
             
-            AccountDetails accountDetails = accountService.createAccount(universalId.get(), createAccountRequest);
+            AccountDetails accountDetails = accountService.createAccount(submissionKey.get().getUniversalId(), createAccountRequest);
 
             logger.info("Account successfully created");
 
@@ -70,6 +75,8 @@ public class CsoAccountApiDelegateImpl implements CsoAccountApiDelegate {
             response.setMessage(ErrorResponse.CREATE_ACCOUNT_EXCEPTION.getErrorMessage());
             return new ResponseEntity(response, HttpStatus.INTERNAL_SERVER_ERROR);
 
+        } finally {
+            MdcUtils.clearUserMDC();
         }
 
     }
@@ -78,13 +85,28 @@ public class CsoAccountApiDelegateImpl implements CsoAccountApiDelegate {
     @RolesAllowed("efiling-user")
     public ResponseEntity<CsoAccount> getCsoAccount(UUID xTransactionId) {
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        logger.debug("Attempting to get CSO account details");
 
-        if(!universalId.isPresent()) return new ResponseEntity(HttpStatus.FORBIDDEN);
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, null);
 
-        AccountDetails accountDetails = accountService.getCsoAccountDetails(universalId.get());
+        if(!submissionKey.isPresent())
+            return new ResponseEntity(
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
+                    HttpStatus.FORBIDDEN);
 
-        if(accountDetails == null) return new ResponseEntity(HttpStatus.NOT_FOUND);
+        MdcUtils.setUserMDC(submissionKey.get());
+
+
+        AccountDetails accountDetails = accountService.getCsoAccountDetails(submissionKey.get().getUniversalId());
+
+        if(accountDetails == null) {
+            logger.debug("User account not found");
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
+        }
+
+        logger.debug("Successfully retrieved account");
+
+        MdcUtils.clearUserMDC();
 
         return ResponseEntity.ok(csoAccountMapper.toCsoAccount(accountDetails));
 
@@ -95,24 +117,24 @@ public class CsoAccountApiDelegateImpl implements CsoAccountApiDelegate {
     @RolesAllowed("efiling-user")
     public ResponseEntity<CsoAccount> updateCsoAccount(UUID xTransactionId, CsoAccountUpdateRequest clientUpdateRequest) {
 
-        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+        Optional<SubmissionKey> submissionKey = SecurityUtils.getSubmissionKey(xTransactionId, null);
 
-        MdcUtils.setUserMDC(UUID.randomUUID(), xTransactionId);
-
-        if(!universalId.isPresent())
+        if(!submissionKey.isPresent())
             return new ResponseEntity(
-                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                    EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                     HttpStatus.FORBIDDEN);
+
+        MdcUtils.setUserMDC(submissionKey.get());
 
         ResponseEntity response;
 
         try {
 
-            AccountDetails accountDetails = accountService.getCsoAccountDetails(universalId.get());
+            AccountDetails accountDetails = accountService.getCsoAccountDetails(submissionKey.get().getUniversalId());
 
             if(accountDetails == null) {
                 return new ResponseEntity(
-                        EfilingErrorBuilder.builder().errorResponse(ErrorResponse.INVALIDUNIVERSAL).create(),
+                        EfilingErrorBuilder.builder().errorResponse(ErrorResponse.MISSING_UNIVERSAL_ID).create(),
                         HttpStatus.FORBIDDEN);
             }
 

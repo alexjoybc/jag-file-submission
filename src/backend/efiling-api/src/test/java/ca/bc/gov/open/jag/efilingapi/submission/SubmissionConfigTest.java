@@ -3,6 +3,7 @@ package ca.bc.gov.open.jag.efilingapi.submission;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.payment.BamboraPaymentAdapter;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.*;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionServiceImpl;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
@@ -109,8 +110,9 @@ public class SubmissionConfigTest {
     }
 
     public static class EfilingSubmissionServiceTest implements EfilingSubmissionService {
+
         @Override
-        public SubmitPackageResponse submitFilingPackage(AccountDetails accountDetails, FilingPackage efilingPackage, String applicationTypeCode, boolean isRushedProcessing, EfilingPaymentService payment) {
+        public SubmitPackageResponse submitFilingPackage(SubmitPackageRequest submitPackageRequest, EfilingPaymentService payment) {
             return null;
         }
     }

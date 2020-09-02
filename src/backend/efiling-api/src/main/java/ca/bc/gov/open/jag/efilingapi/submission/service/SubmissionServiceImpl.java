@@ -3,12 +3,13 @@ package ca.bc.gov.open.jag.efilingapi.submission.service;
 import ca.bc.gov.open.jag.efilingapi.api.model.*;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.payment.BamboraPaymentAdapter;
-import ca.bc.gov.open.jag.efilingapi.submission.SubmissionKey;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.PartyMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.SubmissionMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
 import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionConstants;
 import ca.bc.gov.open.jag.efilingapi.utils.FileUtils;
+import ca.bc.gov.open.jag.efilingapi.utils.SecurityUtils;
 import ca.bc.gov.open.jag.efilingcommons.exceptions.StoreException;
 import ca.bc.gov.open.jag.efilingcommons.model.Court;
 import ca.bc.gov.open.jag.efilingcommons.model.Document;
@@ -81,10 +82,9 @@ public class SubmissionServiceImpl implements SubmissionService {
     public Submission generateFromRequest(SubmissionKey submissionKey, GenerateUrlRequest generateUrlRequest) {
 
         Optional<Submission> cachedSubmission = submissionStore.put(
+                submissionKey,
                 submissionMapper.toSubmission(
-                        submissionKey.getUniversalId(),
-                        submissionKey.getSubmissionId(),
-                        submissionKey.getTransactionId(),
+                        submissionKey,
                         generateUrlRequest,
                         toFilingPackage(generateUrlRequest, submissionKey),
                         getExpiryDate(),
@@ -115,10 +115,10 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         SubmitPackageResponse submitPackageResponse = efilingSubmissionService
                 .submitFilingPackage(
-                        accountDetails,
-                        submission.getFilingPackage(),
-                        submission.getClientApplication().getType(),
-                        submission.isRushedSubmission(),
+                        SubmitPackageRequest.builder()
+                                .accountDetails(accountDetails)
+                                .filingPackage(submission.getFilingPackage())
+                                .create(),
                         efilingPayment -> bamboraPaymentAdapter.makePayment(efilingPayment));
 
         result.setPackageRef(Base64.getEncoder().encodeToString(submitPackageResponse.getPackageLink().getBytes()));
@@ -140,14 +140,15 @@ public class SubmissionServiceImpl implements SubmissionService {
                     documentProperties, submissionKey));
         });
 
-        submissionStore.put(submission);
+        submissionStore.put(submissionKey, submission);
 
         return submission;
     }
 
     private FilingPackage toFilingPackage(GenerateUrlRequest request, SubmissionKey submissionKey) {
 
-        return FilingPackage.builder()
+        return FilingPackage
+                .builder()
                 .court(populateCourtDetails(request.getFilingPackage().getCourt()))
                 .submissionFeeAmount(getSubmissionFeeAmount())
                 .documents(request.getFilingPackage()
@@ -163,6 +164,8 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .stream()
                         .map(party ->  partyMapper.toParty(party))
                         .collect(Collectors.toList()))
+                .applicationType(SecurityUtils.getApplicationCode())
+                .rushedSubmission(isRushedSubmission(request))
                 .create();
 
     }
@@ -213,13 +216,11 @@ public class SubmissionServiceImpl implements SubmissionService {
 
     private void redisStoreToSftpStore(Document document, Submission submission) {
 
-        SubmissionKey submissionKey = new SubmissionKey(submission.getUniversalId(), submission.getTransactionId(), submission.getId());
-
-        sftpService.put(new ByteArrayInputStream(documentStore.get(submissionKey, document.getName())),
+        sftpService.put(new ByteArrayInputStream(documentStore.get(submission.getSubmissionKey(), document.getName())),
                 document.getServerFileName());
 
         //Delete file from cache
-        documentStore.evict(submissionKey, document.getName());
+        documentStore.evict(submission.getSubmissionKey(), document.getName());
 
     }
 

@@ -5,7 +5,7 @@ import ca.bc.gov.open.jag.efilingapi.TestHelpers;
 import ca.bc.gov.open.jag.efilingapi.api.model.GenerateUrlRequest;
 import ca.bc.gov.open.jag.efilingapi.api.model.InitialPackage;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
-import ca.bc.gov.open.jag.efilingapi.submission.SubmissionKey;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.PartyMapperImpl;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.SubmissionMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.SubmissionMapperImpl;
@@ -92,20 +92,17 @@ public class generateFromRequestTest {
     public void withValidAccountShouldReturnSubmission() {
 
         GenerateUrlRequest request = new GenerateUrlRequest();
-        request.setClientApplication(TestHelpers.createClientApplication("app", "app"));
+        request.setClientAppName("app");
         request.setNavigation(TestHelpers.createDefaultNavigation());
         request.setFilingPackage(TestHelpers.createInitalPackage(TestHelpers.createApiCourt(), TestHelpers.createDocumentPropertiesList()));
 
         Submission actual = sut.generateFromRequest(new SubmissionKey(TestHelpers.CASE_1, TestHelpers.CASE_1, TestHelpers.CASE_1), request);
 
-        Assertions.assertEquals(TestHelpers.ERROR_URL, actual.getNavigation().getError().getUrl());
-        Assertions.assertEquals(TestHelpers.CANCEL_URL, actual.getNavigation().getCancel().getUrl());
-        Assertions.assertEquals(TestHelpers.SUCCESS_URL, actual.getNavigation().getSuccess().getUrl());
+        Assertions.assertEquals(TestHelpers.ERROR_URL, actual.getNavigation().getError());
+        Assertions.assertEquals(TestHelpers.CANCEL_URL, actual.getNavigation().getCancel());
+        Assertions.assertEquals(TestHelpers.SUCCESS_URL, actual.getNavigation().getSuccess());
         Assertions.assertEquals(10, actual.getExpiryDate());
-        Assertions.assertNotNull(actual.getId());
-        Assertions.assertEquals(BigDecimal.TEN, actual.getAccountDetails().getAccountId());
-        Assertions.assertEquals(BigDecimal.TEN, actual.getAccountDetails().getClientId());
-        Assertions.assertEquals(INTERNAL_CLIENT_NUMBER, actual.getAccountDetails().getInternalClientNumber());
+        Assertions.assertNotNull(actual.getSubmissionKey().getSubmissionId());
         Assertions.assertEquals(TestHelpers.DIVISION, actual.getFilingPackage().getCourt().getDivision());
         Assertions.assertEquals(TestHelpers.FILENUMBER, actual.getFilingPackage().getCourt().getFileNumber());
         Assertions.assertEquals(TestHelpers.LEVEL, actual.getFilingPackage().getCourt().getLevel());
@@ -143,7 +140,7 @@ public class generateFromRequestTest {
     public void withValidAccountNoRushedShouldReturnSubmission() {
 
         GenerateUrlRequest request = new GenerateUrlRequest();
-        request.setClientApplication(TestHelpers.createClientApplication("app", "app"));
+        request.setClientAppName("app");
         request.setNavigation(TestHelpers.createDefaultNavigation());
 
         InitialPackage filingPackage = TestHelpers.createInitalPackage(TestHelpers.createApiCourt(), TestHelpers.createDocumentPropertiesList());
@@ -152,14 +149,11 @@ public class generateFromRequestTest {
 
         Submission actual = sut.generateFromRequest(new SubmissionKey(TestHelpers.CASE_1, TestHelpers.CASE_1, TestHelpers.CASE_1), request);
 
-        Assertions.assertEquals(TestHelpers.ERROR_URL, actual.getNavigation().getError().getUrl());
-        Assertions.assertEquals(TestHelpers.CANCEL_URL, actual.getNavigation().getCancel().getUrl());
-        Assertions.assertEquals(TestHelpers.SUCCESS_URL, actual.getNavigation().getSuccess().getUrl());
+        Assertions.assertEquals(TestHelpers.ERROR_URL, actual.getNavigation().getError());
+        Assertions.assertEquals(TestHelpers.CANCEL_URL, actual.getNavigation().getCancel());
+        Assertions.assertEquals(TestHelpers.SUCCESS_URL, actual.getNavigation().getSuccess());
         Assertions.assertEquals(10, actual.getExpiryDate());
-        Assertions.assertNotNull(actual.getId());
-        Assertions.assertEquals(BigDecimal.TEN, actual.getAccountDetails().getAccountId());
-        Assertions.assertEquals(BigDecimal.TEN, actual.getAccountDetails().getClientId());
-        Assertions.assertEquals(INTERNAL_CLIENT_NUMBER, actual.getAccountDetails().getInternalClientNumber());
+        Assertions.assertNotNull(actual.getSubmissionKey().getSubmissionId());
         Assertions.assertEquals(TestHelpers.DIVISION, actual.getFilingPackage().getCourt().getDivision());
         Assertions.assertEquals(TestHelpers.FILENUMBER, actual.getFilingPackage().getCourt().getFileNumber());
         Assertions.assertEquals(TestHelpers.LEVEL, actual.getFilingPackage().getCourt().getLevel());
@@ -197,7 +191,7 @@ public class generateFromRequestTest {
     public void withEmptySubmissionShouldThrowStoreException() {
 
         GenerateUrlRequest request = new GenerateUrlRequest();
-        request.setClientApplication(TestHelpers.createClientApplication("app", "type"));
+        request.setClientAppName("app");
         request.setNavigation(TestHelpers.createDefaultNavigation());
         request.setFilingPackage(TestHelpers.createInitalPackage(TestHelpers.createApiCourt(), TestHelpers.createDocumentPropertiesList()));
 
@@ -217,13 +211,7 @@ public class generateFromRequestTest {
 
         Submission submissionCase1 = Submission
                 .builder()
-                .id(TestHelpers.CASE_1)
-                .accountDetails(AccountDetails.builder()
-                    .clientId(BigDecimal.TEN)
-                    .accountId(BigDecimal.TEN)
-                    .internalClientNumber(INTERNAL_CLIENT_NUMBER)
-                    .create())
-                .transactionId(TestHelpers.CASE_1)
+                .submissionKey(new SubmissionKey(TestHelpers.CASE_1, TestHelpers.CASE_1, TestHelpers.CASE_1))
                 .navigation(TestHelpers.createDefaultNavigation())
                 .expiryDate(10)
                 .filingPackage(TestHelpers.createPackage(TestHelpers.createCourt(), TestHelpers.createDocumentList(), TestHelpers.createPartyList()))
@@ -231,8 +219,8 @@ public class generateFromRequestTest {
 
         Mockito
                 .doReturn(Optional.of(submissionCase1))
-                .when(submissionStoreMock).put(
-                ArgumentMatchers.argThat(x -> x.getTransactionId() == TestHelpers.CASE_1));
+                .when(submissionStoreMock).put(Mockito.any(),
+                ArgumentMatchers.argThat(x -> x.getSubmissionKey().getTransactionId() == TestHelpers.CASE_1));
     }
 
     private void configureCase2() {
@@ -241,8 +229,8 @@ public class generateFromRequestTest {
 
         Mockito
                 .doReturn(Optional.empty())
-                .when(submissionStoreMock).put(
-                ArgumentMatchers.argThat(x -> x.getTransactionId() == TestHelpers.CASE_2));
+                .when(submissionStoreMock).put(Mockito.any(),
+                ArgumentMatchers.argThat(x -> x.getSubmissionKey().getTransactionId() == TestHelpers.CASE_2));
     }
 
     private void configureCase3() {
