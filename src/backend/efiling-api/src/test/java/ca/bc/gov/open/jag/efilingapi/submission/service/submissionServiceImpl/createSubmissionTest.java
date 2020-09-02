@@ -6,6 +6,7 @@ import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.payment.BamboraPaymentAdapter;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.PartyMapperImpl;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionServiceImpl;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import ca.bc.gov.open.jag.efilingcommons.model.AccountDetails;
@@ -78,13 +79,7 @@ public class createSubmissionTest {
 
         SubmitResponse actual = sut.createSubmission(Submission
                 .builder()
-                .id(TestHelpers.CASE_1)
-                .accountDetails(AccountDetails.builder()
-                        .clientId(BigDecimal.TEN)
-                        .accountId(BigDecimal.TEN)
-                        .internalClientNumber("123")
-                        .create())
-                .transactionId(TestHelpers.CASE_1)
+                .submissionKey(new SubmissionKey(UUID.randomUUID(),TestHelpers.CASE_1, TestHelpers.CASE_1))
                 .navigation(TestHelpers.createDefaultNavigation())
                 .expiryDate(10)
                 .clientAppName(TestHelpers.DISPLAY_NAME)

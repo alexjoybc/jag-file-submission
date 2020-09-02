@@ -11,10 +11,9 @@ import ca.bc.gov.open.jag.efilingapi.config.NavigationProperties;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.error.ErrorResponse;
 import ca.bc.gov.open.jag.efilingapi.submission.SubmissionApiDelegateImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapper;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapperImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.GenerateUrlResponseMapperImpl;
+import ca.bc.gov.open.jag.efilingapi.submission.mappers.*;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import ca.bc.gov.open.jag.efilingcommons.exceptions.CSOHasMultipleAccountException;
@@ -38,7 +37,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import javax.validation.Valid;
 import java.util.*;
 
-import static ca.bc.gov.open.jag.efilingapi.error.ErrorResponse.INVALIDUNIVERSAL;
+import static ca.bc.gov.open.jag.efilingapi.error.ErrorResponse.MISSING_UNIVERSAL_ID;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("SubmissionApiDelegateImpl test suite")
@@ -98,7 +97,10 @@ public class GenerateUrlTest {
         NavigationProperties navigationProperties = new NavigationProperties();
         navigationProperties.setBaseUrl("http://localhost");
 
-        Submission submission = Submission.builder().id(TestHelpers.CASE_1).transactionId(transactionId).expiryDate(10).create();
+        Submission submission = Submission.builder()
+                .submissionKey(new SubmissionKey(UUID.randomUUID(),transactionId, TestHelpers.CASE_1))
+                .expiryDate(10)
+                .create();
 
         Mockito
                 .when(submissionServiceMock.generateFromRequest(
@@ -127,7 +129,8 @@ public class GenerateUrlTest {
                 Mockito.any());
 
         FilingPackageMapper filingPackageMapper = new FilingPackageMapperImpl();
-        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, new GenerateUrlResponseMapperImpl(), navigationProperties, submissionStoreMock, documentStoreMock, clamAvServiceMock, filingPackageMapper);
+        SubmissionMapper submissionMapper = new SubmissionMapperImpl();
+        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, new GenerateUrlResponseMapperImpl(), navigationProperties, submissionStoreMock, submissionMapper, documentStoreMock, clamAvServiceMock, filingPackageMapper);
 
     }
 
@@ -167,8 +170,8 @@ public class GenerateUrlTest {
         EfilingError actualError = (EfilingError) actual.getBody();
 
         Assertions.assertEquals(HttpStatus.BAD_REQUEST, actual.getStatusCode());
-        Assertions.assertEquals(ErrorResponse.ACCOUNTEXCEPTION.getErrorCode(), actualError.getError());
-        Assertions.assertEquals(ErrorResponse.ACCOUNTEXCEPTION.getErrorMessage(), actualError.getMessage());
+        Assertions.assertEquals(ErrorResponse.ACCOUNT_EXCEPTION.getErrorCode(), actualError.getError());
+        Assertions.assertEquals(ErrorResponse.ACCOUNT_EXCEPTION.getErrorMessage(), actualError.getMessage());
     }
 
     @Test
@@ -184,8 +187,8 @@ public class GenerateUrlTest {
         EfilingError actualError = (EfilingError) actual.getBody();
 
         Assertions.assertEquals(HttpStatus.FORBIDDEN, actual.getStatusCode());
-        Assertions.assertEquals(ErrorResponse.INVALIDROLE.getErrorCode(), actualError.getError());
-        Assertions.assertEquals(ErrorResponse.INVALIDROLE.getErrorMessage(), actualError.getMessage());
+        Assertions.assertEquals(ErrorResponse.INVALID_ROLE.getErrorCode(), actualError.getError());
+        Assertions.assertEquals(ErrorResponse.INVALID_ROLE.getErrorMessage(), actualError.getMessage());
     }
 
     @Test
@@ -231,8 +234,8 @@ public class GenerateUrlTest {
         ResponseEntity actual = sut.generateUrl(UUID.randomUUID(), "BADUUID", UUID.randomUUID(), null);
 
         Assertions.assertEquals(HttpStatus.FORBIDDEN, actual.getStatusCode());
-        Assertions.assertEquals(INVALIDUNIVERSAL.getErrorCode(), ((EfilingError)actual.getBody()).getError());
-        Assertions.assertEquals(INVALIDUNIVERSAL.getErrorMessage(), ((EfilingError)actual.getBody()).getMessage());
+        Assertions.assertEquals(MISSING_UNIVERSAL_ID.getErrorCode(), ((EfilingError)actual.getBody()).getError());
+        Assertions.assertEquals(MISSING_UNIVERSAL_ID.getErrorMessage(), ((EfilingError)actual.getBody()).getMessage());
     }
 }
 

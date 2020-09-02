@@ -1,4 +1,7 @@
-package ca.bc.gov.open.jag.efilingapi.submission;
+package ca.bc.gov.open.jag.efilingapi.submission.models;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.UUID;
 
@@ -8,7 +11,11 @@ public class SubmissionKey {
     private UUID transactionId;
     private UUID submissionId;
 
-    public SubmissionKey(UUID universalId, UUID transactionId, UUID submissionId) {
+    @JsonCreator
+    public SubmissionKey(
+            @JsonProperty("universalId") UUID universalId,
+            @JsonProperty("transactionId") UUID transactionId,
+            @JsonProperty("submissionId") UUID submissionId) {
         this.universalId = universalId;
         this.transactionId = transactionId;
         this.submissionId = submissionId;

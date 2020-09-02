@@ -19,8 +19,8 @@ public interface GenerateUrlResponseMapper {
         return MessageFormat.format(
                 "{0}?submissionId={1}&transactionId={2}",
                 baseUrl,
-                submission.getId(),
-                submission.getTransactionId());
+                submission.getSubmissionKey().getSubmissionId(),
+                submission.getSubmissionKey().getTransactionId());
     }
 
 }

@@ -6,9 +6,7 @@ import ca.bc.gov.open.jag.efilingapi.account.service.AccountService;
 import ca.bc.gov.open.jag.efilingapi.config.NavigationProperties;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.submission.SubmissionApiDelegateImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapper;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapperImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.GenerateUrlResponseMapperImpl;
+import ca.bc.gov.open.jag.efilingapi.submission.mappers.*;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import org.junit.jupiter.api.*;
@@ -83,7 +81,8 @@ public class GetSubmissionDocumentTest {
         Mockito.when(documentStoreMock.get(Mockito.any(), Mockito.endsWith("test.txt"))).thenReturn(CONTENT.getBytes());
 
         FilingPackageMapper filingPackageMapper = new FilingPackageMapperImpl();
-        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, new GenerateUrlResponseMapperImpl(), navigationProperties, submissionStoreMock, documentStoreMock, clamAvServiceMock, filingPackageMapper);
+        SubmissionMapper submissionMapper = new SubmissionMapperImpl();
+        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, new GenerateUrlResponseMapperImpl(), navigationProperties, submissionStoreMock, submissionMapper, documentStoreMock, clamAvServiceMock, filingPackageMapper);
 
     }
 

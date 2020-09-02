@@ -1,6 +1,6 @@
 package ca.bc.gov.open.jag.efilingapi.submission.service.submissionStore;
 
-import ca.bc.gov.open.jag.efilingapi.submission.SubmissionKey;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStoreImpl;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;

@@ -1,27 +1,18 @@
 package ca.bc.gov.open.jag.efilingapi.submission.models;
 
 import ca.bc.gov.open.jag.efilingapi.api.model.Navigation;
-import ca.bc.gov.open.jag.efilingcommons.model.AccountDetails;
 import ca.bc.gov.open.jag.efilingcommons.model.FilingPackage;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.UUID;
 
 /**
  * Represents the submission details for a transaction
  */
 public class Submission {
 
-    private UUID id;
-
-    private UUID transactionId;
-
-    private UUID universalId;
+    private SubmissionKey submissionKey;
 
     private long expiryDate;
-
-    private AccountDetails accountDetails;
 
     private Navigation navigation;
 
@@ -29,18 +20,12 @@ public class Submission {
 
     private FilingPackage filingPackage;
 
-    private boolean rushedSubmission;
-
     protected Submission(Submission.Builder builder) {
-        this.id = builder.id;
-        this.transactionId = builder.transactionId;
-        this.accountDetails = builder.accountDetails;
+        this.submissionKey = builder.submissionKey;
         this.filingPackage = builder.filingPackage;
         this.navigation = builder.navigation;
         this.clientAppName = builder.clientAppName;
         this.expiryDate = builder.expiryDate;
-        this.universalId = builder.universalId;
-        this.rushedSubmission = builder.rushedSubmission;
     }
 
     public static Submission.Builder builder() {
@@ -49,31 +34,19 @@ public class Submission {
 
     @JsonCreator
     public Submission(
-            @JsonProperty("id") UUID id,
-            @JsonProperty("owner") UUID transactionId,
-            @JsonProperty("bceid") UUID universalId,
-            @JsonProperty("accountDetails") AccountDetails accountDetails,
+            @JsonProperty("submissionKey") SubmissionKey submissionKey,
             @JsonProperty("package") FilingPackage filingPackage,
             @JsonProperty("navigation") Navigation navigation,
             @JsonProperty("clientAppName") String clientAppName,
-            @JsonProperty("expiryDate") long expiryDate,
-            @JsonProperty("rushedSubmission") boolean rushedSubmission) {
-        this.id = id;
-        this.transactionId = transactionId;
-        this.universalId = universalId;
-        this.accountDetails = accountDetails;
+            @JsonProperty("expiryDate") long expiryDate) {
+        this.submissionKey = submissionKey;
         this.filingPackage = filingPackage;
         this.navigation = navigation;
         this.clientAppName = clientAppName;
         this.expiryDate = expiryDate;
-        this.rushedSubmission = rushedSubmission;
     }
 
-    public UUID getId() { return id; }
-
-    public UUID getTransactionId() { return transactionId; }
-
-    public UUID getUniversalId() { return universalId; }
+    public SubmissionKey getSubmissionKey() { return submissionKey; }
 
     public FilingPackage getFilingPackage() {
         return filingPackage;
@@ -89,45 +62,16 @@ public class Submission {
         return expiryDate;
     }
 
-    public AccountDetails getAccountDetails() {
-        return accountDetails;
-    }
-
-    public boolean isRushedSubmission() { return rushedSubmission; }
-
-    public void setAccountDetails(AccountDetails accountDetails) {
-        this.accountDetails = accountDetails;
-    }
-
     public static class Builder {
 
-        private UUID id;
-        private UUID transactionId;
-        private UUID universalId;
-        private AccountDetails accountDetails;
+        private SubmissionKey submissionKey;
         private FilingPackage filingPackage;
         private Navigation navigation;
         private String clientAppName;
         private long expiryDate;
-        private boolean rushedSubmission;
 
-        public Builder id (UUID id) {
-            this.id = id;
-            return this;
-        }
-
-        public Builder accountDetails (AccountDetails accountDetails) {
-            this.accountDetails = accountDetails;
-            return this;
-        }
-
-        public Builder transactionId(UUID owner) {
-            this.transactionId = owner;
-            return this;
-        }
-
-        public Builder universalId(UUID universalId) {
-            this.universalId = universalId;
+        public Builder submissionKey(SubmissionKey submissionKey) {
+            this.submissionKey = submissionKey;
             return this;
         }
 
@@ -148,11 +92,6 @@ public class Submission {
 
         public Builder expiryDate(long expiryDate) {
             this.expiryDate = expiryDate;
-            return this;
-        }
-
-        public Builder rushedSubmission(boolean rushedSubmission) {
-            this.rushedSubmission = rushedSubmission;
             return this;
         }
 

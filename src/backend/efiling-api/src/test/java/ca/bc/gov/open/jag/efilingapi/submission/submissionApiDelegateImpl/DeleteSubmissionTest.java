@@ -6,10 +6,9 @@ import ca.bc.gov.open.jag.efilingapi.account.service.AccountService;
 import ca.bc.gov.open.jag.efilingapi.config.NavigationProperties;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.submission.SubmissionApiDelegateImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapper;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.FilingPackageMapperImpl;
-import ca.bc.gov.open.jag.efilingapi.submission.mappers.GenerateUrlResponseMapperImpl;
+import ca.bc.gov.open.jag.efilingapi.submission.mappers.*;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionService;
 import ca.bc.gov.open.jag.efilingapi.submission.service.SubmissionStore;
 import org.junit.jupiter.api.*;
@@ -85,7 +84,7 @@ public class DeleteSubmissionTest {
 
         Submission submission = Submission
                 .builder()
-                .universalId(UUID.randomUUID())
+                .submissionKey(new SubmissionKey(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()))
                 .filingPackage(TestHelpers.createPackage(TestHelpers.createCourt(), createDocumentList(), TestHelpers.createPartyList()))
                 .create();
 
@@ -94,7 +93,8 @@ public class DeleteSubmissionTest {
 
         NavigationProperties navigationProperties = new NavigationProperties();
         FilingPackageMapper filingPackageMapper = new FilingPackageMapperImpl();
-        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, new GenerateUrlResponseMapperImpl(), navigationProperties, submissionStoreMock, documentStoreMock, null, filingPackageMapper);
+        SubmissionMapper submissionMapper = new SubmissionMapperImpl();
+        sut = new SubmissionApiDelegateImpl(submissionServiceMock, accountServiceMock, new GenerateUrlResponseMapperImpl(), navigationProperties, submissionStoreMock, submissionMapper, documentStoreMock, null, filingPackageMapper);
 
     }
 

@@ -3,7 +3,7 @@ package ca.bc.gov.open.jag.efilingapi.submission.service;
 import ca.bc.gov.open.jag.efilingapi.api.model.*;
 import ca.bc.gov.open.jag.efilingapi.document.DocumentStore;
 import ca.bc.gov.open.jag.efilingapi.payment.BamboraPaymentAdapter;
-import ca.bc.gov.open.jag.efilingapi.submission.SubmissionKey;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.PartyMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.mappers.SubmissionMapper;
 import ca.bc.gov.open.jag.efilingapi.submission.models.Submission;
@@ -82,6 +82,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     public Submission generateFromRequest(SubmissionKey submissionKey, GenerateUrlRequest generateUrlRequest) {
 
         Optional<Submission> cachedSubmission = submissionStore.put(
+                submissionKey,
                 submissionMapper.toSubmission(
                         submissionKey,
                         generateUrlRequest,
@@ -139,7 +140,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                     documentProperties, submissionKey));
         });
 
-        submissionStore.put(submission);
+        submissionStore.put(submissionKey, submission);
 
         return submission;
     }
@@ -215,13 +216,11 @@ public class SubmissionServiceImpl implements SubmissionService {
 
     private void redisStoreToSftpStore(Document document, Submission submission) {
 
-        SubmissionKey submissionKey = new SubmissionKey(submission.getUniversalId(), submission.getTransactionId(), submission.getId());
-
-        sftpService.put(new ByteArrayInputStream(documentStore.get(submissionKey, document.getName())),
+        sftpService.put(new ByteArrayInputStream(documentStore.get(submission.getSubmissionKey(), document.getName())),
                 document.getServerFileName());
 
         //Delete file from cache
-        documentStore.evict(submissionKey, document.getName());
+        documentStore.evict(submission.getSubmissionKey(), document.getName());
 
     }
 

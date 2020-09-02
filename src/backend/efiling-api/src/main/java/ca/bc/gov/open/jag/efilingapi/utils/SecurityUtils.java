@@ -1,6 +1,7 @@
 package ca.bc.gov.open.jag.efilingapi.utils;
 
 import ca.bc.gov.open.jag.efilingapi.Keys;
+import ca.bc.gov.open.jag.efilingapi.submission.models.SubmissionKey;
 import org.keycloak.KeycloakPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -10,6 +11,16 @@ import java.util.UUID;
 public class SecurityUtils {
 
     private SecurityUtils() {
+    }
+
+    public static  Optional<SubmissionKey> getSubmissionKey(UUID xTransactionId, UUID submissionId) {
+
+        Optional<UUID> universalId = SecurityUtils.getUniversalIdFromContext();
+
+        if(!universalId.isPresent()) return Optional.empty();
+
+        return Optional.of(new SubmissionKey(universalId.get(), xTransactionId, submissionId));
+
     }
 
     public static Optional<UUID> getUniversalIdFromContext() {

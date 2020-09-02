@@ -1,13 +1,11 @@
 package ca.bc.gov.open.jag.efilingapi.submission.models;
 
 import ca.bc.gov.open.jag.efilingapi.TestHelpers;
-import ca.bc.gov.open.jag.efilingcommons.model.AccountDetails;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -31,23 +29,16 @@ public class SubmissionTest {
     public void testingConstructor() {
 
         Submission actual = new Submission(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                AccountDetails.builder()
-                        .clientId(BigDecimal.TEN)
-                        .accountId(BigDecimal.TEN)
-                        .internalClientNumber(INTERNAL_CLIENT_NUMBER)
-                        .create(),
+                new SubmissionKey(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID()),
                 TestHelpers.createPackage(TestHelpers.createCourt(), TestHelpers.createDocumentList(), TestHelpers.createPartyList()),
                 TestHelpers.createNavigation(CASE_1, CANCEL, ERROR),
                 DISPLAYNAME,
-                1, true);
+                1);
 
 
-        Assertions.assertEquals(BigDecimal.TEN, actual.getAccountDetails().getAccountId());
-        Assertions.assertEquals(BigDecimal.TEN, actual.getAccountDetails().getClientId());
-        Assertions.assertEquals(INTERNAL_CLIENT_NUMBER, actual.getAccountDetails().getInternalClientNumber());
         Assertions.assertEquals(DISPLAYNAME, actual.getClientAppName());
         Assertions.assertEquals(ERROR, actual.getNavigation().getError());
         Assertions.assertEquals(CANCEL, actual.getNavigation().getCancel());
@@ -65,7 +56,6 @@ public class SubmissionTest {
         Assertions.assertEquals(TestHelpers.DESCRIPTION, actual.getFilingPackage().getDocuments().get(0).getDescription());
         Assertions.assertEquals(true, actual.getFilingPackage().getDocuments().get(0).getIsAmendment());
         Assertions.assertEquals(true, actual.getFilingPackage().getDocuments().get(0).getIsSupremeCourtScheduling());
-        Assertions.assertEquals(true, actual.isRushedSubmission());
     }
 
 }
