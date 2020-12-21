@@ -17,7 +17,7 @@
         <com.splunk.logging.version>1.8.0</com.splunk.logging.version>
         <io.github.openfeign.opentracing.version>0.4.1</io.github.openfeign.opentracing.version>
         <io.opentracing.contrib.version>3.2.2</io.opentracing.contrib.version>
-        <io.springfox.version>2.9.2</io.springfox.version>
+        <io.springfox.version>3.0.0</io.springfox.version>
         <io.swagger.version>1.6.2</io.swagger.version>
         <javax.validation.version>2.0.1.Final</javax.validation.version>
         <javax.xml.bind.version>2.3.1</javax.xml.bind.version>
